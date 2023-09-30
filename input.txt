@@ -1,19 +1,11 @@
-//bool test_func2 (int arg_1 ) {
-//    while (i <= 0) {
-//        if (j > 3) {
-//            r = 5;
-//        }
-//        else
-//        {
-//            z = 7;
-//        }
-//    }
-//    a = "test_string";
-//}
-bool test_func() {
-    r == 4;
-//    b = (4 + 5) * 2;
-    t = "test_str_2";
-//    int[,] g;
-//    g[r] = 4;
+bool test_func2 (int arg_1 ) {
+//    do {
+        if (j > 3) {
+            r = 5+(6*4);
+        }
+        else
+        {
+            z = 7;
+        }
+//    } while (i <= 0);
 }
