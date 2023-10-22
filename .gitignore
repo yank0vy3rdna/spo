@@ -4,3 +4,4 @@
 *.o
 result
 out.txt
+*.ext

@@ -26,13 +26,32 @@ ASTNodes createNodes() {
     return nodes;
 }
 
+char *ASTNode_toString(ASTNode *node) {
+    if (node == NULL) {
+        return "NULL";
+    }
+    if (node->value == NULL || strlen(node->value) == 0) {
+        char *leftSide = ASTNode_toString(node->left);
+        char *rightSide = ASTNode_toString(node->right);
+        char *result = malloc(strlen(node->type) + strlen(leftSide) + strlen(rightSide) + 5);
+        sprintf(result, "%s(%s, %s)", node->type, leftSide, rightSide);
+        return result;
+    }
+    return node->value;
+}
+
 ASTNode *createNode(char *type, ASTNode *left, ASTNode *right, char *value) {
     ASTNode *node = malloc(sizeof(ASTNode));
     node->type = type;
     node->left = left;
     node->right = right;
-    char *buf = malloc(1024 * sizeof(char));
-    strcpy(buf, value);
+    char *buf;
+    if (value == NULL || strlen(value) == 0) {
+        buf = ASTNode_toString(node);
+    } else {
+        buf = malloc(strlen(value) + 1);
+        strcpy(buf, value);
+    }
     node->value = buf;
     allNodes[fileNum].nodes[allNodes[fileNum].count] = node;
     allNodes[fileNum].count++;
@@ -87,4 +106,8 @@ void printAST() {
 
     }
     printf("}\n");
+}
+
+char *printNodeHuman(ASTNode *node) {
+//    if (node->ty)
 }

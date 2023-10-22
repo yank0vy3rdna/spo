@@ -17,10 +17,12 @@ struct preparedFunc {
 ASTNodes findAllProcedures();
 
 preparedFunc prepareProcedure(ASTNode *procedure);
+
 typedef struct CFG CFG;
 
-CFG * makeCFG(preparedFunc pf, int nextId, int num);
-void CFG_print(CFG *cfg, int num, CFG **pCfg, int i);
+CFG *makeCFG(preparedFunc pf, int nextId, int num);
+
+void CFG_print(FILE* f,CFG *cfg, int num, CFG **pCfg, int i);
 
 typedef struct Link Link;
 typedef struct LinkList LinkList;
@@ -32,7 +34,7 @@ typedef struct CFGBuilder CFGBuilder;
 
 struct Block {
     int id;
-    char* call;
+    __attribute__((unused)) char *call;
     LinkList *predecessors;
     LinkList *exits;
 };
@@ -55,21 +57,19 @@ struct CFGBuilder {
     BlockList *after_loop_block_stack;
     BlockList *curr_loop_guard_stack;
     Block *current_block;
-    BlockList *calls;
+    __attribute__((unused)) BlockList *calls;
     int current_id;
     CFG *cfg;
 };
 
 void CFGBuilder_visit(CFGBuilder *cfgBuilder, ASTNode *node);
 
-void CFGBuilder_visitIf(CFGBuilder *cfgBuilder, ASTNode *node);
-
 // CFG
 
 struct CFG {
     char *procedureName;
     Block *entryblock;
-    BlockList *finalblocks;
+    __attribute__((unused)) BlockList *finalblocks;
     int nextId;
 };
 

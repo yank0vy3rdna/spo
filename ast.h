@@ -14,7 +14,7 @@ typedef struct ASTNode ASTNode;
 typedef struct ASTNodes ASTNodes;
 
 struct ASTNodes {
-    ASTNode** nodes;
+    ASTNode **nodes;
     int count;
 };
 
@@ -27,9 +27,13 @@ struct ASTNode {
 };
 
 void destroy();
+
 void printAST();
 
 ASTNode *createNode(char *type, ASTNode *left, ASTNode *right, char *value);
+
 ASTNodes createNodes();
+
+char *printNodeHuman(ASTNode *node);
 
 #endif //LAB1_AST_H

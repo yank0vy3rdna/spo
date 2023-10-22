@@ -122,9 +122,16 @@ void AddExit(Block *block, Block *nextBlock, char *comment) {
     LinkList_push(nextBlock->predecessors, link);
 }
 
+char *concat(char *a, char *b) {
+    char *c = malloc(strlen(a) + strlen(b) + 1);
+    sprintf(c, "%s%s", a, b);
+    return c;
+}
+
 void CFGBuilder_visitIf(CFGBuilder *cfgBuilder, ASTNode *node) {
     Block *ifBlock = CFGBuilder_newBlock(cfgBuilder, "");
-    AddExit(cfgBuilder->current_block, ifBlock, "if");
+//    char* comment = malloc();
+    AddExit(cfgBuilder->current_block, ifBlock, concat("IF ", node->left->value));
     Block *afterIfBlock = CFGBuilder_newBlock(cfgBuilder, "");
     if (node->right->right != NULL) { // else block exists
         Block *elseBlock = CFGBuilder_newBlock(cfgBuilder, "");
@@ -132,15 +139,15 @@ void CFGBuilder_visitIf(CFGBuilder *cfgBuilder, ASTNode *node) {
         cfgBuilder->current_block = elseBlock;
         CFGBuilder_visit(cfgBuilder, node->right->right);
         if (cfgBuilder->current_block->exits->count == 0) {
-            AddExit(cfgBuilder->current_block, afterIfBlock, "afterIf");
+            AddExit(cfgBuilder->current_block, afterIfBlock, "");
         }
     } else {
-        AddExit(cfgBuilder->current_block, afterIfBlock, "afterIf");
+        AddExit(cfgBuilder->current_block, afterIfBlock, "");
     }
     cfgBuilder->current_block = ifBlock;
     CFGBuilder_visit(cfgBuilder, node->right->left);
     if (cfgBuilder->current_block->exits->count == 0) {
-        AddExit(cfgBuilder->current_block, afterIfBlock, "afterIf");
+        AddExit(cfgBuilder->current_block, afterIfBlock, "");
     }
     cfgBuilder->current_block = afterIfBlock;
 }
@@ -160,7 +167,7 @@ void CFGBuilder_visitDoWhile(CFGBuilder *cfgBuilder, ASTNode *node) {
     BlockList_push(cfgBuilder->curr_loop_guard_stack, loopguard);
 
     Block *whileBlock = CFGBuilder_newBlock(cfgBuilder, "");
-    AddExit(loopguard, whileBlock, "do while");
+    AddExit(loopguard, whileBlock, "do");
     cfgBuilder->current_block = whileBlock;
     Block *afterWhile = CFGBuilder_newBlock(cfgBuilder, "");
 
@@ -169,8 +176,8 @@ void CFGBuilder_visitDoWhile(CFGBuilder *cfgBuilder, ASTNode *node) {
     CFGBuilder_visit(cfgBuilder, node->left);
 
 
-    AddExit(cfgBuilder->current_block, loopguard, "while cond is true");
-    AddExit(cfgBuilder->current_block, afterWhile, "while cond is false");
+    AddExit(cfgBuilder->current_block, loopguard, concat("while ", node->right->value));
+    AddExit(cfgBuilder->current_block, afterWhile, "");
     cfgBuilder->current_block = afterWhile;
 
     BlockList_pop(cfgBuilder->after_loop_block_stack);
@@ -182,15 +189,15 @@ void CFGBuilder_visitWhile(CFGBuilder *cfgBuilder, ASTNode *node) {
     cfgBuilder->current_block = loopguard;
     BlockList_push(cfgBuilder->curr_loop_guard_stack, loopguard);
     Block *whileBlock = CFGBuilder_newBlock(cfgBuilder, "");
-    AddExit(cfgBuilder->current_block, whileBlock, "while cond is true");
+    AddExit(cfgBuilder->current_block, whileBlock, concat("while ", node->left->value));
     Block *afterWhile = CFGBuilder_newBlock(cfgBuilder, "");
     BlockList_push(cfgBuilder->after_loop_block_stack, afterWhile);
-    AddExit(cfgBuilder->current_block, afterWhile, "while cond is false");
+    AddExit(cfgBuilder->current_block, afterWhile, "");
     cfgBuilder->current_block = whileBlock;
     CFGBuilder_visit(cfgBuilder, node->right);
 
     if (cfgBuilder->current_block->exits->count == 0) {
-        AddExit(cfgBuilder->current_block, loopguard, "loop back");
+        AddExit(cfgBuilder->current_block, loopguard, "");
     }
     cfgBuilder->current_block = afterWhile;
     BlockList_pop(cfgBuilder->after_loop_block_stack);
@@ -266,15 +273,15 @@ CFG *NewCFG(char *procedureName, Block *entryblock) {
     return cfg;
 }
 
-void Block_print(Block *block) {
-    printf("\"%d\"", block->id);
+void Block_print(Block *block, FILE *f) {
+    fprintf(f, "\"%d\"", block->id);
 }
 
-void Link_print(Link *link) {
-    Block_print(link->source);
-    printf(" -> ");
-    Block_print(link->target);
-    printf("[label=\"%s\"];\n", link->comment);
+void Link_print(Link *link, FILE *f) {
+    Block_print(link->source, f);
+    fprintf(f, " -> ");
+    Block_print(link->target, f);
+    fprintf(f, "[label=\"%s\"];\n", link->comment);
 }
 
 int seenOrNot(int id, int count, int *seen) {
@@ -302,55 +309,30 @@ Block *BlockFindLast(Block *block) {
     return BlockFindLast(block->exits->links[0]->target);
 }
 
-void recPrint(Block *block, int *seen, int *count, CFG **cfgs, int countCfgs) {
+void recPrint(FILE *f, Block *block, int *seen, int *count, CFG **cfgs, int countCfgs) {
     if (seenOrNot(block->id, *count, seen) != 0) {
         return;
     }
     seen[*count] = block->id;
     (*count)++;
-//    if (strlen(block->call) > 0) {
-//        CFG *calledProcedure = CFG_find(cfgs, countCfgs, block->call);
-//        if (calledProcedure == NULL) {
-//            printf("procedure %s not found", block->call);
-//            exit(1);
-//        }
-//        Block_print(block);
-//        printf(" -> ");
-//        Block_print(calledProcedure->entryblock);
-//        printf("[label=\"call procedure %s\"];\n", block->call);
-//
-//        Block *lastProcBlock = BlockFindLast(calledProcedure->entryblock);
-//
-//        if (block->exits->count>0){
-//            Block_print(lastProcBlock);
-//            printf(" -> ");
-//            Block_print(block);
-//        }
-
-//        return;
-//    } else {
-        for (int i = 0; i < block->exits->count; ++i) {
-            Link_print(block->exits->links[i]);
-            recPrint(block->exits->links[i]->target, seen, count, cfgs, countCfgs);
-        }
-        if (block->exits->count == 0) {
-            Block_print(block);
-            printf(" -> end;\n");
-        }
-//    }
+    for (int i = 0; i < block->exits->count; ++i) {
+        Link_print(block->exits->links[i], f);
+        recPrint(f, block->exits->links[i]->target, seen, count, cfgs, countCfgs);
+    }
+    if (block->exits->count == 0) {
+        Block_print(block, f);
+        fprintf(f, " -> end;\n");
+    }
 }
 
-void CFG_print(CFG *cfg, int num, CFG **cfgs, int countCfgs) {
-    cfg->entryblock->id = -cfg->entryblock->id;
+void CFG_print(FILE *f, CFG *cfg, int num, CFG **cfgs, int countCfgs) {
     int seen[1024];
     int count = 0;
-    printf("subgraph cluster_%d {\n", num);
-    printf("color=black;\n");
-    printf("label=%s;\n", cfg->procedureName);
-    recPrint(cfg->entryblock, seen, &count, cfgs, countCfgs);
-    printf("}\nstart -> ");
-    Block_print(cfg->entryblock);
-    printf(";\n");
+    fprintf(f, "label=%s;\n", cfg->procedureName);
+    recPrint(f, cfg->entryblock, seen, &count, cfgs, countCfgs);
+    fprintf(f, "\nstart -> ");
+    Block_print(cfg->entryblock, f);
+    fprintf(f, ";\n");
 }
 
 CFG *makeCFG(preparedFunc pf, int nextId, int num) {

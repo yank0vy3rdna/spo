@@ -1,11 +1,22 @@
 bool test_func2 (int arg_1 ) {
-//    do {
-        if (j > 3) {
+        do {
+            r = 5+(6*4);
+        } while (j > 3);
+}
+
+bool test_func3 (int arg_1 ) {
+        while (j > 3) {
             r = 5+(6*4);
         }
-        else
-        {
-            z = 7;
+}
+bool test_func4 (int arg_1 ) {
+        if (j > 3) {
+            r = 5+(6*4);
+        }else {
+            g = 2;
         }
-//    } while (i <= 0);
+}
+bool test_func() {
+    int[,] g;
+    g[r] = 4;
 }

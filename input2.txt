@@ -1,4 +1,4 @@
-bool test_func() {
+bool test_func7() {
     r == 4;
     b = (4 + 5) * 2;
     t = "test_str_2";

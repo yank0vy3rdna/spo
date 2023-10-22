@@ -33,4 +33,4 @@ result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o
 	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o -o result && chmod +x result
 
 run: result
-	./result input.txt input2.txt > out.txt
+	./result input.txt input2.txt
