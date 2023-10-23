@@ -1,3 +1,7 @@
 /cmake-build-debug/
 /tree.html
 /.idea
+*.o
+result
+out.txt
+*.ext

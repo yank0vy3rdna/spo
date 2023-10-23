@@ -67,12 +67,12 @@
 source: {{$$ = NULL;}}
     | source sourceItem {{$$ = createNode("source", $1, $2, "");}};
 
-sourceItem: funcSignature block {{$$ = createNode("sourceItem", $1, $2, "");}}
-    | funcSignature SEMICOLON {{$$ = createNode("sourceItem", $1, NULL, "");}};
+sourceItem: funcSignature block {{$$ = createNode(sourceItem, $1, $2, "");}}
+    | funcSignature SEMICOLON {{$$ = createNode(sourceItem, $1, NULL, "");}};
 
 /* FUNCSIGNATURE */
 
-funcSignature: argDef LPAREN listArgDef RPAREN {{$$ = createNode("funcSignature", $1, $3, "");}};
+funcSignature: argDef LPAREN listArgDef RPAREN {{$$ = createNode(funcSignature, $1, $3, "");}};
 
 listArgDef:  {{$$ = NULL;}}
     | argDef {{$$ = $1;}}
@@ -117,7 +117,7 @@ var: typeRef listVarDeclared SEMICOLON {{$$ = createNode("var", $1, $2, "");}};
 
 if: IF LPAREN expr RPAREN statement optionalElseStatement {{$$ = createNode("if", $3, createNode("ifStatements", $5, $6, ""), "");}};
 
-optionalElseStatement: ELSE statement optionalElseStatement {{$$ = createNode("else", $2, $3, "");}}
+optionalElseStatement: ELSE if optionalElseStatement {{$$ = createNode("else", $2, $3, "");}}
     | ELSE statement {{$$ = createNode("else", $2, NULL, "");}}
     | {{$$ = NULL;}};
 
