@@ -1,0 +1,171 @@
+architecture spo {
+
+/*
+	case				18
+	data word length	2
+	code model			Регистровый трехадресный
+	spaces				код, константы, данные
+*/
+
+registers:
+
+	storage r0st [16];
+	storage r1st [16];
+	storage r2st [16];
+	storage r3st [16];
+	storage ip [16];
+
+	storage inp [8];
+	storage outp [8];
+
+	view r0 = r0st;
+	view r1 = r1st;
+	view r2 = r2st;
+	view r3 = r3st;
+
+memory:
+
+	range constants_ram [0x0000 .. 0xffff] {
+		cell = 8;
+		endianess = little-endian;
+		granularity = 2;
+	}
+
+	range code_ram [0x0000 .. 0xffff] {
+		cell = 8;
+		endianess = little-endian;
+		granularity = 2;
+	}
+
+	range data_ram [0x0000 .. 0xffff] {
+		cell = 8;
+		endianess = little-endian;
+		granularity = 2;
+	}
+
+instructions:
+
+	encode imm16 field = immediate [16];
+
+	encode ftest field = cases {
+		a = 0011,
+		b = 1100,
+		c = 1111
+	};
+
+	encode reg field = register {
+		r0 = 00,
+		r1 = 01,
+		r2 = 10,
+		r3 = 11
+	};
+
+	// instruction fff = { 0111, ftest as arg };
+	instruction fffa = { 0110, ftest.a };
+
+	instruction add-reg2reg = { 00 0000 0000, reg as op1, reg as op2, reg as to} {
+		to = op1 + op2;
+		ip = ip + 2;
+	};
+
+	instruction add-imm2reg = { 0010, reg as op1, reg as to, imm16 as value} {
+		to = op1 + value;
+		ip = ip + 3;
+	};
+
+	instruction sub = { 00 0000 0001, reg as op1, reg as op2, reg as to } {
+		to = op1 - op2;
+		ip = ip + 1;
+	};
+
+	instruction ldc = { 1000, reg as to, 00 , imm16 as value } {
+		to = value;
+		ip = ip + 3;
+	};
+
+	encode jmpKind sequence = alternatives {
+		simple = { 0 },
+		complex = { 1 }
+	};
+
+	instruction jmp = { 111, sequence jmpKind, 0000, imm16 as target } {
+		when simple then
+			ip = target;
+		else
+			ip = ip + 3;
+	};
+
+	instruction rb = { 1101 0000 } {
+		r3 = inp;
+		ip = ip + 1;
+	};
+
+	instruction wb = { 1100 0000 } {
+		outp = r2;
+		ip = ip + 1;
+	};
+
+	encode bank sequence = alternatives {
+		d = {00},
+		c = {01},
+		p = {11}
+	};
+
+	instruction st = { 1100 0001, sequence bank, reg as from, reg as ptr, 00 } {
+		when d then
+			constants_ram:1[ptr] = from;
+		else when c then
+			code_ram:1[ptr] = from;
+		else
+			data_ram:1[ptr] = from;
+
+		ip = ip + 2;
+	};
+
+	instruction ld = { 1100 0011, sequence bank, reg as to, reg as ptr, 00 } {
+		when d then
+			to = constants_ram:1[ptr];
+		else when c then
+			to = code_ram:1[ptr];
+		else
+			to = data_ram:1[ptr];
+
+		ip = ip + 2;
+	};
+
+	instruction hlt = { 0111 0000 } {
+	};
+
+mnemonics:
+
+	mnemonic rb();
+	mnemonic wb();
+	mnemonic hlt();
+
+	mnemonic store for st(from, ptr) "d[{2}], {1}" when d,
+					     (from, ptr) "c[{2}], {1}" when c,
+					     (from, ptr) "p[{2}], {1}" when p;
+
+	mnemonic load for ld(to, ptr) "{1}, d[{2}]" when d,
+					    (to, ptr) "{1}, c[{2}]" when c,
+					    (to, ptr) "{1}, p[{2}]" when p;
+
+	format plain1 is "{1}";
+	format plain2 is "{1}, {2}";
+	format plain3 is "{1}, {2}, {3}";
+
+	mnemonic fff_a for fffa() "";
+
+	mnemonic add for add-reg2reg (op1, op2, to) plain3,
+				 for add-imm2reg (op1, to, value) plain3;
+
+	mnemonic sub (op1, op2, to) plain3;
+	mnemonic ldc (to, value) plain2;
+
+	mnemonic sjmp for jmp (target) plain1 when simple;
+	mnemonic cjmp for jmp (target) plain1 when complex;
+	/*
+	mnemonic jmp (target) "{1}" when simple,
+				 (target) "~{1}" when complex;
+	*/
+}
