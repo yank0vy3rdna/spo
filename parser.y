@@ -44,7 +44,6 @@
 %type <node> array
 %type <node> source
 %type <node> listArgDef
-%type <node> optionalTypeRef
 %type <node> literal
 %type <node> place
 %type <node> indexer
@@ -59,9 +58,6 @@
 %type <node> optionalElseStatement
 %type <node> listStatement
 %type <node> listVarDeclaredItem
-
-
-
 
 %%
 source: {{$$ = NULL;}}
@@ -78,10 +74,8 @@ listArgDef:  {{$$ = NULL;}}
     | argDef {{$$ = $1;}}
     | argDef COMMA listArgDef {{$$ = createNode("listArgDef", $1, $3, "");}};
 
-argDef: optionalTypeRef IDENTIFIER {{$$ = createNode("argDef", $1, $2, "");}};
+argDef: typeRef IDENTIFIER {{$$ = createNode("argDef", $1, $2, "");}};
 
-optionalTypeRef: {{ $$ = NULL; }}
-    | typeRef {{$$ = $1;}};
 
 /* TypeRef */
 typeRef: builtin {{$$ = $1;}}
@@ -117,7 +111,7 @@ var: typeRef listVarDeclared SEMICOLON {{$$ = createNode("var", $1, $2, "");}};
 
 if: IF LPAREN expr RPAREN statement optionalElseStatement {{$$ = createNode("if", $3, createNode("ifStatements", $5, $6, ""), "");}};
 
-optionalElseStatement: ELSE if optionalElseStatement {{$$ = createNode("else", $2, $3, "");}}
+optionalElseStatement: ELSE if {{$$ = createNode("elseif", $2, NULL, "");}}
     | ELSE statement {{$$ = createNode("else", $2, NULL, "");}}
     | {{$$ = NULL;}};
 
@@ -127,7 +121,7 @@ listStatement: statement listStatement {{$$ = createNode("listStatement", $1, $2
 block: LBRACE listStatement RBRACE {{$$ = createNode("block", $2, NULL, "");}}
     | LBRACE RBRACE {{$$ = createNode("block", NULL, NULL, "");}};
 
-while: WHILE LPAREN expr RPAREN statement {{$$ = createNode("while", $3, $5, "");}};
+while: WHILE LPAREN expr RPAREN block {{$$ = createNode("while", $3, $5, "");}};
 
 do: DO block WHILE LPAREN expr RPAREN SEMICOLON {{$$ = createNode("dowhile", $2, $5, "");}};
 
@@ -160,8 +154,7 @@ binary: assignment
     | expr AND expr {{$$ = createNode("AND", $1, $3, "");}}
     | expr OR expr {{$$ = createNode("OR", $1, $3, "");}};
 
-unary: PLUS expr {{$$ = createNode("PLUS", $2, NULL, "");}}
-    | MINUS expr {{$$ = createNode("MINUS", $2, NULL, "");}}
+unary: MINUS expr {{$$ = createNode("MINUS_UNARY", $2, NULL, "");}}
     | NOT expr {{$$ = createNode("NOT", $2, NULL, "");}};
 
 braces: LPAREN expr RPAREN  {{$$ = createNode("braces", $2, NULL, "");}};

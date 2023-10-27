@@ -1,6 +1,7 @@
 #include <string.h>
 #include "main.h"
 #include "cfg.h"
+#include "preprocess_ast.h"
 
 extern ASTNodes allNodes[maxCountOfNodesLists];
 extern int fileNum;
@@ -24,24 +25,26 @@ int main(int argc, char *argv[]) {
             }
         }
         ASTNodes allProcedures = findAllProcedures();
-//        int nextId = 0;
-        CFG **cfgs = malloc(allProcedures.count * sizeof(CFG *));
-        for (int i = 0; i < allProcedures.count; ++i) {
-            preparedFunc func = prepareProcedure(allProcedures.nodes[i]);
-            CFG *cfg = makeCFG(func, 0, i);
-            cfgs[i] = cfg;
-//            nextId = cfg->nextId;
 
-        }
-        for (int i = 0; i < allProcedures.count; ++i) {
-            char *filename = malloc(strlen(cfgs[i]->procedureName) + 5);
-            sprintf(filename, "%s.ext", cfgs[i]->procedureName);
-            FILE *f = fopen(filename, "w+");
-            fprintf(f, "digraph G {");
-            CFG_print(f, cfgs[i], i, cfgs, allProcedures.count);
-            fprintf(f, "start [shape=Mdiamond]; end [shape=Msquare];\n}\n");
-            fclose(f);
-        }
+        processSemantics(allProcedures);
+//        int nextId = 0;
+//        CFG **cfgs = malloc(allProcedures.count * sizeof(CFG *));
+//        for (int i = 0; i < allProcedures.count; ++i) {
+//            preparedFunc func = prepareProcedure(allProcedures.nodes[i]);
+//            CFG *cfg = makeCFG(func, 0, i);
+//            cfgs[i] = cfg;
+////            nextId = cfg->nextId;
+//
+//        }
+//        for (int i = 0; i < allProcedures.count; ++i) {
+//            char *filename = malloc(strlen(cfgs[i]->procedureName) + 5);
+//            sprintf(filename, "%s.ext", cfgs[i]->procedureName);
+//            FILE *f = fopen(filename, "w+");
+//            fprintf(f, "digraph G {");
+//            CFG_print(f, cfgs[i], i, cfgs, allProcedures.count);
+//            fprintf(f, "start [shape=Mdiamond]; end [shape=Msquare];\n}\n");
+//            fclose(f);
+//        }
 
 
         destroy();

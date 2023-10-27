@@ -70,6 +70,10 @@
            yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
            return TYPEDEF;
        }
+"void" {
+          yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
+          return TYPEDEF;
+      }
 "string"  {
               yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
               return TYPEDEF;

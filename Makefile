@@ -15,6 +15,9 @@ error.o: error.c
 cfg.o: cfg.c
 	gcc -c -o cfg.o cfg.c
 
+preprocess_ast.o: preprocess_ast.c
+	gcc -c -o preprocess_ast.o preprocess_ast.c
+
 parser.tab.c: parser.y
 	bison -d -t parser.y
 	echo '#include "ast.h"' | cat - parser.tab.h > temp && mv temp parser.tab.h
@@ -31,11 +34,11 @@ lex.yy.o: lex.yy.c
 parser.tab.o: parser.tab.c
 	gcc -c -o parser.tab.o parser.tab.c
 
-result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o
-	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o -o result && chmod +x result
+result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o preprocess_ast.o
+	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o preprocess_ast.o -o result && chmod +x result
 
 run: result
-	./result input.txt input2.txt
+	./result input.txt
 
 run_assemble:
 	$(REMOTE_TASKS_CMD) -s Assemble -w definitionFile arch/spo.target.pdsl archName spo asmListing spo.asm > assemble_res.txt
