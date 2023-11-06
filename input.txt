@@ -1,7 +1,9 @@
-void main(int[] a) {
-    if (g == 0) {
-        int g = 4+5;
-    } else {
-        int b = 5;
+void main() {
+    int i = 0;
+    while (i < 4) {
+        if (i >= 1){
+            break;
+        }
+        i = i + 1;
     }
 }

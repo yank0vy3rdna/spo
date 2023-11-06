@@ -187,7 +187,7 @@ rem-imm2reg	0001	0001	op1	value				to
     };
 
     instruction jumpeq = { 0001 0101, reg as op1, imm16 as to, 0000} {
-        if op1 == 0 then
+        if op1 == 0x0 then
         {
             ip = to;
         }
@@ -197,7 +197,7 @@ rem-imm2reg	0001	0001	op1	value				to
         }
     };
     instruction jumpgt = { 0001 0110, reg as op1, imm16 as to, 0000} {
-        if op1 > 0  then
+       if (op1 >> 15 == 0x0) && (op1 != 0x0) then
        {
            ip = to;
        }
@@ -207,7 +207,7 @@ rem-imm2reg	0001	0001	op1	value				to
        }
     };
     instruction jumpge = { 0001 0111, reg as op1, imm16 as to, 0000} {
-        if op1 >= 0  then
+        if (op1 >> 15 == 0x0) then
         {
            ip = to;
         }
@@ -216,18 +216,14 @@ rem-imm2reg	0001	0001	op1	value				to
            ip = ip + 4;
         }
     };
-    instruction jumplt = { 0001 0101, reg as op1, imm16 as to, 0000} {
-        if op1 < 0  then
-        {
+    instruction jumplt = { 0001 1000, reg as op1, imm16 as to, 0000} {
+        if op1 >> 15 == 0x1 then // op1 < 0
             ip = to;
-        }
         else
-        {
             ip = ip + 4;
-        }
     };
-    instruction jumple = { 0001 0101, reg as op1, imm16 as to, 0000} {
-        if op1 <= 0 then
+    instruction jumple = { 0001 1001, reg as op1, imm16 as to, 0000} {
+       if (op1 >> 15 == 0x1) || (op1 == 0x0) then // op1 <= 0
        {
            ip = to;
        }
@@ -243,33 +239,27 @@ rem-imm2reg	0001	0001	op1	value				to
 		t = {0011}
 	};
 
-	instruction st = { 0001 1010, sequence bank, reg as from, imm16 as ptr } {
-		when d then
-			data_ram:1[fp+ptr] = from;
-		else when c then
-			code_ram:1[fp+ptr] = from;
+	instruction st = { 0001 1010 0000, reg as from, imm16 as ptr } {
+		data_ram:1[ptr] = from;
+		data_ram:1[ptr+1] = from>>8;
 
 		ip = ip + 4;
 	};
 
-	instruction ld = { 0001 1011, sequence bank, reg as to, imm16 as ptr } {
-		when t then
-			to = constants_ram:1[fp+ptr];
-		else when c then
-			to = code_ram:1[fp+ptr];
-		else when d then
-			to = data_ram:1[fp+ptr];
+	instruction ld = { 0001 1011 0000, reg as to, imm16 as ptr } {
+		to = data_ram:1[ptr] + (data_ram:1[ptr+1] << 8);
 
 		ip = ip + 4;
 	};
     instruction push = { 0001 1100, reg as from, 0000 0000 0000 0000 0000 } {
-        sp = sp - 1;
+        sp = sp - 2;
         data_ram:1[sp] = from;
+        data_ram:1[sp+1] = from >> 8;
 		ip = ip + 4;
     };
     instruction pop = { 0001 1101, reg as to, 0000 0000 0000 0000 0000 } {
-        to = data_ram:1[sp];
-        sp = sp + 1;
+        to = data_ram:1[sp] + (data_ram:1[sp+1] << 8);
+        sp = sp + 2;
 		ip = ip + 4;
     };
 	instruction hlt = { 1111 1111 1111 1111 1111 1111 1111 1111 } {
@@ -279,26 +269,32 @@ mnemonics:
 
 	mnemonic hlt();
 
-	mnemonic store for st(from, ptr) "d[{2}], {1}" when d,
+/*	mnemonic store for st(from, ptr) "d[{2}], {1}" when d,
 					     (from, ptr) "c[{2}], {1}" when c,
 					     (from, ptr) "t[{2}], {1}" when t;
 
 	mnemonic load for ld(to, ptr) "{1}, d[{2}]" when d,
 					    (to, ptr) "{1}, c[{2}]" when c,
 					    (to, ptr) "{1}, t[{2}]" when t;
+*/
 
 	format plain1 is "{1}";
 	format plain2 is "{1}, {2}";
 	format plain3 is "{1}, {2}, {3}";
 
+	mnemonic store for st(from, ptr) plain2;
+	mnemonic load for ld(ptr, to) plain2;
+
+    mnemonic neg for negative (op1, to) plain2;
+    mnemonic _not for invert (op1, to) plain2;
 
 	mnemonic add for add-reg2reg (op1, op2, to) plain3,
 				 for add-imm2reg (op1, value, to) plain3;
 
 	mnemonic sub for sub-reg2reg (op1, op2, to) plain3,
 				 for sub-imm2reg (op1, value, to) plain3;
-	mnemonic mov for mov-reg2reg (op1, to) plain3,
-				 for mov-imm2reg ( value, to) plain3;
+	mnemonic mov for mov-reg2reg (op1, to) plain2,
+				 for mov-imm2reg ( value, to) plain2;
 	mnemonic _and for and-reg2reg (op1, op2, to) plain3,
 				 for and-imm2reg (op1, value, to) plain3;
 	mnemonic _or for or-reg2reg (op1, op2, to) plain3,
@@ -312,4 +308,10 @@ mnemonics:
     mnemonic push for push(from) plain1;
     mnemonic pop for pop(to) plain1;
 
+    mnemonic jump for jump(to) plain1;
+    mnemonic jumpeq for jumpeq(op1, to) plain2;
+    mnemonic jumpgt for jumpgt(op1, to) plain2;
+    mnemonic jumpge for jumpge(op1, to) plain2;
+    mnemonic jumplt for jumplt(op1, to) plain2;
+    mnemonic jumple for jumple(op1, to) plain2;
 }

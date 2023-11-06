@@ -1,10 +1,10 @@
 REMOTE_TASKS_CMD=mono RemoteTasks/Portable.RemoteTasks.Manager.exe -ul $$(cat arch/.env | grep RemoteTasksLogin | awk '{print $$2}') -up $$(cat arch/.env | grep RemoteTasksPassword | awk '{print $$2}')
 
 .PHONY: all clean
-all: result
+all: get_trace
 
 clean:
-	rm -rf *.o result
+	rm -rf *.o result out*
 
 lex.yy.c: lexer.l
 	flex lexer.l
@@ -18,8 +18,20 @@ cfg.o: cfg.c
 preprocess_ast.o: preprocess_ast.c
 	gcc -c -o preprocess_ast.o preprocess_ast.c
 
+semantic_analyser.o: semantic_analyser.c
+	gcc -c -o semantic_analyser.o semantic_analyser.c
+
+symbolic_table.o: symbolic_table.c
+	gcc -c -o symbolic_table.o symbolic_table.c
+
+symbolic_table_asm.o: symbolic_table_asm.c
+	gcc -c -o symbolic_table_asm.o symbolic_table_asm.c
+
+asm_generator.o: asm_generator.c
+	gcc -c -o asm_generator.o asm_generator.c
+
 parser.tab.c: parser.y
-	bison -d -t parser.y
+	../bison/tests/bison -d -t parser.y
 	echo '#include "ast.h"' | cat - parser.tab.h > temp && mv temp parser.tab.h
 
 main.o: main.c
@@ -34,14 +46,15 @@ lex.yy.o: lex.yy.c
 parser.tab.o: parser.tab.c
 	gcc -c -o parser.tab.o parser.tab.c
 
-result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o preprocess_ast.o
-	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o preprocess_ast.o -o result && chmod +x result
+result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o symbolic_table_asm.o asm_generator.o
+	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o symbolic_table_asm.o asm_generator.o -o result && chmod +x result
 
-run: result
+out.asm: result input.txt
 	./result input.txt
+	cat out.asm.data out.asm.code > out.asm
 
-run_assemble:
-	$(REMOTE_TASKS_CMD) -s Assemble -w definitionFile arch/spo.target.pdsl archName spo asmListing spo.asm > assemble_res.txt
+run_assemble: out.asm
+	$(REMOTE_TASKS_CMD) -s Assemble -w definitionFile arch/spo.target.pdsl archName spo asmListing out.asm > assemble_res.txt
 	cat assemble_res.txt
 
 get_results: run_assemble

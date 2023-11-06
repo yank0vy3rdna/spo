@@ -8,15 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-preparedFunc *findMain(preparedFunc *funcs, int count) {
-    for (int i = 0; i < count; ++i) {
-        if (strcmp(funcs[i].identifier, "main") == 0) {
-            return &funcs[i];
-        }
-    }
-    return NULL;
-}
-
 preparedFunc *prepareProcedures(ASTNodes allProcedures) {
     preparedFunc *funcs = malloc(sizeof(preparedFunc) * allProcedures.count);
     for (int i = 0; i < allProcedures.count; ++i) {
@@ -35,6 +26,7 @@ preparedUnary prepareUnary(ASTNode *node) {
         unary.type = UNARY_TYPE_NOT;
     }
     unary.operand = prepareExpression(node->left);
+    unary.astNode = node;
     return unary;
 }
 
@@ -69,6 +61,7 @@ preparedBinary prepareBinaryExpr(ASTNode *node) {
     }
     binary.leftOperand = prepareExpression(node->left);
     binary.rightOperand = prepareExpression(node->right);
+    binary.astNode = node;
     return binary;
 }
 
@@ -124,7 +117,7 @@ expressionsList makeExpressionsList(ASTNode *node) {
         }
         list.expressions[j] = *expr;
     }
-
+    list.astNode = node;
     return list;
 }
 
@@ -132,6 +125,7 @@ preparedCall prepareCall(ASTNode *node) {
     preparedCall call = {};
     call.procedureName = node->left->value;
     call.argumentExpressions = makeExpressionsList(node->right);
+    call.astNode = node;
     return call;
 }
 
@@ -139,6 +133,7 @@ preparedIndexer prepareIndexer(ASTNode *node) {
     preparedIndexer indexer = {};
     indexer.expression = prepareExpression(node);
     indexer.indexExpressions = makeExpressionsList(node->right);
+    indexer.astNode = node;
     return indexer;
 }
 
@@ -168,11 +163,13 @@ preparedLiteral prepareLiteral(ASTNode *node) {
         literal.type.arrayDem = 0;
         literal.i_value = atoi(node->value);
     }
+    literal.astNode = node;
     return literal;
 }
 
 preparedExpression *prepareExpression(ASTNode *node) {
     preparedExpression *expression = malloc(sizeof(preparedExpression));
+    expression->astNode = node;
     if (strcmp(node->type, "braces") == 0) {
         expression->type = BRACES;
         expression->expression = prepareExpression(node->left);
@@ -217,35 +214,21 @@ conditionalStatement makeConditionalStatementFromIf(ASTNode *node) {
     conditionalStatement statement = {};
     statement.condition = *prepareExpression(node->left);
     statement.statement = prepareStatement(node->right->left);
+    statement.astNode = node;
     return statement;
 }
 
 preparedIf *prepareIf(ASTNode *node) {
     preparedIf *ifp = malloc(sizeof(preparedIf));
     conditionalStatement firstStatement = makeConditionalStatementFromIf(node);
-    ASTNode *i = node->right->right;
-    ifp->countOfConditionalStatements = 1;
-    while (i != NULL) {
-        if (strcmp(i->type, "elseif") == 0) {
-            ifp->countOfConditionalStatements++;
-        }
-        i = i->right;
+    ifp->statement = firstStatement;
+    if (node->right->right != NULL) {
+        ifp->elseStatement = prepareStatement(node->right->right->left);
+        ifp->elseStatementExists = 1;
+    } else {
+        ifp->elseStatementExists = 0;
     }
-    ifp->statements = malloc(sizeof(conditionalStatement) * ifp->countOfConditionalStatements);
-    ifp->statements[0] = firstStatement;
-    int j = 1;
-    i = node->right->right;
-    while (i != NULL) {
-        if (strcmp(i->type, "else") == 0) {
-            ifp->elseStatement = prepareStatement(i->left);
-            break;
-        } else if (strcmp(i->type, "elseif") == 0) {
-            ifp->statements[j] = makeConditionalStatementFromIf(i->left);
-            j++;
-            i = i->left->right->right;
-        }
-    }
-
+    ifp->astNode = node;
     return ifp;
 }
 
@@ -277,6 +260,7 @@ preparedType prepareType(ASTNode *node, int arrayDem) {
     } else if (strcmp(node->type, "array") == 0) {
         type = prepareType(node->left, arrayDem + strlen(node->value) - 1);
     }
+    type.astNode = node;
     return type;
 }
 
@@ -285,11 +269,13 @@ preparedVar prepareArgDef(ASTNode *node) {
     var.isInitValueExists = 0;
     var.type = prepareType(node->left, 0);
     var.identifier = node->right->value;
+    var.astNode = node;
     return var;
 }
 
 preparedVars prepareVars(ASTNode *node) {
     preparedVars vars = {};
+    vars.astNode = node;
     vars.count = 0;
     preparedType type = prepareType(node->left, 0);
     ASTNode *i = node->right;
@@ -329,6 +315,7 @@ preparedWhile prepareWhile(ASTNode *node) {
     }
     whilep.condition = *expr;
     whilep.block = prepareBlock(node->right);
+    whilep.astNode = node;
     return whilep;
 }
 
@@ -341,7 +328,23 @@ preparedDoWhile prepareDoWhile(ASTNode *node) {
     }
     dowhile.condition = *expr;
     dowhile.block = prepareBlock(node->left);
+    dowhile.astNode = node;
     return dowhile;
+}
+
+preparedAssigment prepareAssigment(ASTNode *node) {
+    preparedAssigment assigment = {};
+    if (strcmp(node->left->type, "indexer") == 0) {
+        assigment.to.type = INDEXER;
+        assigment.to.indexer = prepareIndexer(node->left);
+    }
+    if (strcmp(node->left->type, "IDENTIFIER") == 0) {
+        assigment.to.type = PLACE;
+        assigment.to.identifier = node->left->value;
+    }
+    assigment.rightPart = prepareExpression(node->right);
+    assigment.astNode = node;
+    return assigment;
 }
 
 preparedStatement prepareStatement(ASTNode *node) {
@@ -363,6 +366,22 @@ preparedStatement prepareStatement(ASTNode *node) {
         statement.dowhile = prepareDoWhile(node);
     } else if (strcmp(node->type, "break") == 0) {
         statement.type = STATEMENT_TYPE_BREAK;
+    } else if (strcmp(node->type, "assigment") == 0) {
+        statement.type = STATEMENT_TYPE_ASSIGMENT;
+        statement.assigment = prepareAssigment(node);
+    } else if (strcmp(node->type, "return") == 0) {
+        statement.type = STATEMENT_TYPE_RETURN;
+        if (node->left == NULL) {
+            statement.expression.type = LITERAL;
+            statement.expression.literal.type.type = VOID;
+        } else {
+            preparedExpression *expression = prepareExpression(node->left);
+            if (expression == NULL) {
+                fprintf(stderr, "invalid expression");
+                return statement;
+            }
+            statement.expression = *expression;
+        }
     } else {
         preparedExpression *expression = prepareExpression(node);
         if (expression == NULL) {
@@ -372,6 +391,7 @@ preparedStatement prepareStatement(ASTNode *node) {
         statement.type = STATEMENT_TYPE_EXPRESSION;
         statement.expression = *expression;
     }
+    statement.astNode = node;
     return statement;
 }
 
@@ -395,6 +415,7 @@ preparedBlock prepareBlock(ASTNode *body) {
         j++;
         i = i->right;
     }
+    block.astNode = body;
     return block;
 }
 
@@ -423,6 +444,7 @@ preparedVars prepareFuncArgs(ASTNode *node) {
         }
         i = i->right;
     }
+    args.astNode = node;
     return args;
 }
 
@@ -456,17 +478,10 @@ preparedFunc prepareProcedure(ASTNode *procedure) {
     pf.args = prepareFuncArgs(procedure->left->right);
     pf.returnType = prepareType(procedure->left->left->left, 0);
     pf.body = prepareBlock(procedure->right);
+    pf.astNode = procedure;
     return pf;
 }
 
-void processSemantics(ASTNodes allProcedures) {
-    preparedFunc *funcs = prepareProcedures(allProcedures);
-    preparedFunc *main = findMain(funcs, allProcedures.count);
-    if (main == NULL) {
-        printf("main procedure not found\n");
-        return;
-    }
-}
 /*
  *
  * Call -> push instruction pointer to stack
@@ -481,3 +496,22 @@ void processSemantics(ASTNodes allProcedures) {
  * pop old instruction pointer from stack
  */
 
+
+const char *primitiveType_toString(primitiveType type) {
+    switch (type) {
+        case CHARACTER:
+            return "CHARACTER";
+        case INT:
+            return "INT";
+        case BOOL:
+            return "BOOL";
+        case VOID:
+            return "VOID";
+        case CUSTOM:
+            return "CUSTOM";
+        case FUNC:
+            return "FUNC";
+        case RESERVED:
+            return "RESERVED";
+    }
+}

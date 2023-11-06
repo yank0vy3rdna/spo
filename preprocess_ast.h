@@ -14,29 +14,37 @@ typedef struct preparedBlock preparedBlock;
 typedef struct preparedBinary preparedBinary;
 typedef struct preparedCall preparedCall;
 typedef struct preparedIndexer preparedIndexer;
-typedef enum statementType statementType;
-typedef enum expressionType expressionType;
-typedef enum binaryType binaryType;
 typedef struct expressionsList expressionsList;
-typedef enum unaryType unaryType;
 typedef struct preparedLiteral preparedLiteral;
-typedef enum primitiveType primitiveType;
 typedef struct preparedType preparedType;
-typedef enum BOOLEAN BOOLEAN;
 typedef struct conditionalStatement conditionalStatement;
 typedef struct preparedIf preparedIf;
 typedef struct preparedWhile preparedWhile;
 typedef struct preparedDoWhile preparedDoWhile;
 typedef struct preparedVars preparedVars;
 typedef struct preparedVar preparedVar;
+typedef struct preparedFunc preparedFunc;
+typedef struct preparedAssigment preparedAssigment;
+
+typedef enum statementType statementType;
+typedef enum expressionType expressionType;
+typedef enum binaryType binaryType;
+typedef enum unaryType unaryType;
+typedef enum primitiveType primitiveType;
+typedef enum BOOLEAN BOOLEAN;
+
 
 enum primitiveType {
-    CHARACTER, INT, BOOL, VOID, CUSTOM
+    CHARACTER, INT, BOOL, VOID, CUSTOM, FUNC, RESERVED
 };
+
+const char *primitiveType_toString(primitiveType type);
+
 struct preparedType {
     primitiveType type;
     char *customTypeIdentifier;
     int arrayDem;
+    ASTNode *astNode;
 };
 enum BOOLEAN {
     BOOLEAN_TRUE,
@@ -48,28 +56,32 @@ struct preparedLiteral {
     int i_value;
     char *s_value;
     BOOLEAN b_value;
+    ASTNode *astNode;
 };
 struct preparedVar {
     preparedType type;
     char *identifier;
     preparedExpression *initValue;
     int isInitValueExists;
+    ASTNode *astNode;
 };
 struct expressionsList {
     preparedExpression *expressions;
     int expressionsCount;
+    ASTNode *astNode;
 };
 struct preparedCall {
     char *procedureName;
     expressionsList argumentExpressions;
+    ASTNode *astNode;
 };
 struct preparedIndexer {
     preparedExpression *expression;
     expressionsList indexExpressions;
+    ASTNode *astNode;
 };
 
 enum binaryType {
-    BINARY_TYPE_ASSIGMENT,
     BINARY_TYPE_PLUS,
     BINARY_TYPE_MINUS,
     BINARY_TYPE_STAR,
@@ -88,6 +100,7 @@ struct preparedBinary {
     binaryType type;
     preparedExpression *leftOperand;
     preparedExpression *rightOperand;
+    ASTNode *astNode;
 };
 enum unaryType {
     UNARY_TYPE_MINUS,
@@ -96,6 +109,7 @@ enum unaryType {
 struct preparedUnary {
     unaryType type;
     preparedExpression *operand;
+    ASTNode *astNode;
 };
 enum expressionType {
     UNARY,
@@ -119,6 +133,7 @@ struct preparedExpression {
         preparedLiteral literal;
         char *identifier;
     };
+    ASTNode *astNode;
 };
 enum statementType {
     STATEMENT_TYPE_BLOCK,
@@ -127,23 +142,34 @@ enum statementType {
     STATEMENT_TYPE_WHILE,
     STATEMENT_TYPE_DO_WHILE,
     STATEMENT_TYPE_BREAK,
-    STATEMENT_TYPE_EXPRESSION
+    STATEMENT_TYPE_EXPRESSION,
+    STATEMENT_TYPE_ASSIGMENT,
+    STATEMENT_TYPE_RETURN,
 };
 struct preparedBlock {
     preparedStatement *statements;
     int statementsCount;
+    ASTNode *astNode;
 };
 struct preparedVars {
     preparedVar *vars;
     int count;
+    ASTNode *astNode;
 };
 struct preparedWhile {
     preparedExpression condition;
     preparedBlock block;
+    ASTNode *astNode;
 };
 struct preparedDoWhile {
     preparedExpression condition;
     preparedBlock block;
+    ASTNode *astNode;
+};
+struct preparedAssigment {
+    preparedExpression to;
+    preparedExpression *rightPart;
+    ASTNode *astNode;
 };
 struct preparedStatement {
     statementType type;
@@ -154,10 +180,10 @@ struct preparedStatement {
         preparedVars vars;
         preparedWhile whilep;
         preparedDoWhile dowhile;
+        preparedAssigment assigment;
     };
+    ASTNode *astNode;
 };
-
-typedef struct preparedFunc preparedFunc;
 
 
 struct preparedFunc {
@@ -165,15 +191,18 @@ struct preparedFunc {
     preparedVars args;
     preparedType returnType;
     preparedBlock body;
+    ASTNode *astNode;
 };
 struct conditionalStatement {
     preparedExpression condition;
     preparedStatement statement;
+    ASTNode *astNode;
 };
 struct preparedIf {
-    conditionalStatement *statements;
-    int countOfConditionalStatements;
+    conditionalStatement statement;
     preparedStatement elseStatement;
+    int elseStatementExists;
+    ASTNode *astNode;
 };
 
 
@@ -185,6 +214,7 @@ preparedStatement prepareStatement(ASTNode *node);
 
 preparedFunc prepareProcedure(ASTNode *procedure);
 
-void processSemantics(ASTNodes allProcedures);
+preparedFunc *prepareProcedures(ASTNodes allProcedures);
+
 
 #endif //LAB1_PREPROCESS_AST_H

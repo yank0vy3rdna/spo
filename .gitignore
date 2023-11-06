@@ -9,3 +9,6 @@ RemoteTasks/*
 .env
 *.ptptb
 *.txt
+/out.asm
+/out.asm.code
+/out.asm.data

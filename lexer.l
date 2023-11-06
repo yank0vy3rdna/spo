@@ -45,141 +45,150 @@
 "byte" {
            yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
            return TYPEDEF;
-       }
+      }
 "int" {
           yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
           return TYPEDEF;
-      }
+     }
 "uint" {
            yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
            return TYPEDEF;
-       }
+      }
 "long" {
            yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
            return TYPEDEF;
-       }
+      }
 "bool" {
            yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
            return TYPEDEF;
-       }
+      }
 "ulong" {
             yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
             return TYPEDEF;
-        }
+       }
 "char" {
            yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
            return TYPEDEF;
-       }
+      }
 "void" {
           yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
           return TYPEDEF;
-      }
+     }
 "string"  {
               yylval.node = createNode("TYPEDEF", NULL, NULL, yytext);
               return TYPEDEF;
-          }
+         }
 "if"                                {
  yylval.node = createNode("IF", NULL, NULL, "");
  return IF;
- }
+}
+"return" {
+ return RETURN;
+}
 "else"                              {
  yylval.node = createNode("ELSE", NULL, NULL, "");
  return ELSE;
- }
+}
 "do"                                {
  yylval.node = createNode("DO", NULL, NULL, "");
  return DO;
- }
+}
 "while"                             {
  yylval.node = createNode("WHILE", NULL, NULL, "");
  return WHILE;
- }
+}
 "break"                             {
  yylval.node = createNode("BREAK", NULL, NULL, "");
  return BREAK;
- }
+}
 "{"                                 {
  return LBRACE;
- }
+}
 "}"                                 {
  return RBRACE;
- }
+}
 "["                                 {
  return LBRACKET;
- }
+}
 "]"                                 {
  return RBRACKET;
- }
+}
 "true"                              {
  yylval.node = createNode("TRUE", NULL, NULL, "");
  return TRUE;
- }
+}
 "false"                             {
  yylval.node = createNode("FALSE", NULL, NULL, "");
  return FALSE;
- }
+}
 "%"                                 {
  return PERCENT;
- }
+}
 ";"                                 {
  return SEMICOLON;
- }
+}
 ","                                 {
  return COMMA;
- }
+}
 "!="                                {
  return NOTEQUAL;
- }
+}
 "!"                                 {
  return NOT;
- }
+}
 "\|\|"                              {
  return OR;
- }
+}
 "&&"                                {
  return AND;
- }
+}
 "+"                                 {
  return PLUS;
- }
+}
 "-"                                 {
  return MINUS;
- }
+}
 "<="                                {
  return LESSTHANEQ;
- }
+}
 ">="                                {
  return GREATERTHANEQ;
- }
+}
 "<"                                 {
  return LESSTHAN;
- }
+}
 ">"                                 {
  return GREATERTHAN;
- }
+}
 "*"                                 {
  return STAR;
- }
+}
+ "/"                                 {
+  return SLASH;
+}
 "("                                 {
  return LPAREN;
- }
+}
 ")"                                 {
  return RPAREN;
- }
-"="                                 {
+}
+"=="                                 {
  return EQUAL;
- }
+}
+"="                                 {
+ return ASSIGN;
+}
 [a-zA-Z_][a-zA-Z_0-9]* {
     yylval.node = createNode("IDENTIFIER", NULL, NULL, yytext);
     return IDENTIFIER;
 }
-\/\/.*                               { /* Пропустить комментарии */ }
-\n                                  { /* Пропустить переводы строк */ }
-[ \t]                               { /* Пропустить пробелы и табуляцию */ }
+\/\/.*                               { /* Пропустить комментарии */}
+\n                                  { /* Пропустить переводы строк */}
+[ \t]                               { /* Пропустить пробелы и табуляцию */}
 .                                   {
                                         // Обработка нераспознанных символов или ошибок
                                         fprintf(stderr, "Нераспознанный символ: %s\n", yytext);
-                                    }
+                                   }
 
 %%
 
