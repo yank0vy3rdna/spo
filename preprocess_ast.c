@@ -482,20 +482,6 @@ preparedFunc prepareProcedure(ASTNode *procedure) {
     return pf;
 }
 
-/*
- *
- * Call -> push instruction pointer to stack
- * push frame pointer to stack
- * make frame pointer equal to stack pointer
- * push arguments to stack, add to stack pointer size of arguments and size of memory the function need for variables
- * goto procedure pointer
- * do some stuff ...
- * put return value into r0
- * make stack pointer equal frame pointer
- * pop old frame pointer from stack
- * pop old instruction pointer from stack
- */
-
 
 const char *primitiveType_toString(primitiveType type) {
     switch (type) {

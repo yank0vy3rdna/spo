@@ -1,9 +1,6 @@
+int t(int r){
+    return r;
+}
 void main() {
-    int i = 0;
-    while (i < 4) {
-        if (i >= 1){
-            break;
-        }
-        i = i + 1;
-    }
+    int i = t(2);
 }

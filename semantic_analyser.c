@@ -6,21 +6,12 @@
 #include <printf.h>
 #include "semantic_analyser.h"
 #include "symbolic_table.h"
-#include "asm_generator.h"
 
 struct context {
     preparedFunc *funcs;
     int count;
 };
 
-preparedFunc *findProcedureById(struct context ctx, char *identifier) {
-    for (int i = 0; i < ctx.count; ++i) {
-        if (strcmp(ctx.funcs[i].identifier, identifier) == 0) {
-            return &ctx.funcs[i];
-        }
-    }
-    return NULL;
-}
 
 int compareTypes(preparedType type1, preparedType type2) {
     if (type1.type != type2.type) {
@@ -73,7 +64,8 @@ int preparedVars_visit(preparedVars vars, symbolicTable *table) {
             }
         }
         union ctx c = {};
-        if (symbolicTable_putSymbol(table, vars.vars[i].type, vars.vars[i].identifier, c, SYMBOL_CATEGORY_VAR) != 0) {
+        if (symbolicTable_putSymbol(table, vars.vars[i].type, vars.vars[i].identifier, NULL, c, SYMBOL_CATEGORY_VAR) !=
+            0) {
             return 1;
         }
     }
@@ -127,6 +119,8 @@ preparedUnary_visit(preparedUnary unary, symbolicTable *table, preparedType *exp
     return preparedExpression_visit(*unary.operand, table, expectedType, foundType);
 }
 
+int processSemanticsForFunction(preparedFunc *func, symbolicTable *table);
+
 int preparedExpression_visit(preparedExpression expression, symbolicTable *table, preparedType *expectedType,
                              preparedType *foundType) {
 
@@ -152,10 +146,29 @@ int preparedExpression_visit(preparedExpression expression, symbolicTable *table
                 fprintf(stderr, "%s is not a function", expression.call.procedureName);
                 return 2;
             }
+            if (expression.call.argumentExpressions.expressionsCount != s->ctx.func->args.count) {
+                fprintf(stderr, "invalid count of call arguments, expected: %d, got: %d",
+                        s->ctx.func->args.count,
+                        expression.call.argumentExpressions.expressionsCount);
+                return 2;
+            }
             for (int i = 0; i < expression.call.argumentExpressions.expressionsCount; ++i) {
                 preparedExpression_visit(expression.call.argumentExpressions.expressions[i], table,
-                                         &s->ctx.func.args.vars[i].type,
+                                         &s->ctx.func->args.vars[i].type,
                                          NULL);
+            }
+            if (foundType != NULL) {
+                *foundType = s->ctx.func->returnType;
+            }
+            if (expectedType != NULL) {
+                if (compareTypes(s->ctx.func->returnType, *expectedType) != 0) {
+                    return 2;
+                }
+            }
+            if (s->ctx.func->seen == 0) {
+                if (processSemanticsForFunction(s->ctx.func, table) != 0) {
+                    return 1;
+                }
             }
             break;
         case INDEXER:
@@ -282,7 +295,7 @@ int preparedStatement_visit(preparedStatement statement, symbolicTable *table) {
             if (s == NULL) {
                 return 2;
             }
-            return preparedExpression_visit(statement.expression, table, &s->ctx.func.returnType, NULL);
+            return preparedExpression_visit(statement.expression, table, &s->ctx.func->returnType, NULL);
     }
     return 0;
 }
@@ -295,12 +308,13 @@ symbolicTable *getGrandparentTable(symbolicTable *table) {
 }
 
 int processSemanticsForFunction(preparedFunc *func, symbolicTable *table) {
+    func->seen = 1;
     table = getGrandparentTable(table);
     table = newSymbolicTable(table, func->args.count);
     table->currentFuncId = func->identifier;
     for (int i = 0; i < func->args.count; ++i) {
         union ctx c = {};
-        if (symbolicTable_putSymbol(table, func->args.vars[i].type, func->args.vars[i].identifier, c,
+        if (symbolicTable_putSymbol(table, func->args.vars[i].type, func->args.vars[i].identifier, NULL, c,
                                     SYMBOL_CATEGORY_VAR) != 0) {
             symbolicTable_free(table);
             return 1;
@@ -318,16 +332,20 @@ int processSemanticsForFunction(preparedFunc *func, symbolicTable *table) {
 int processSemantics(preparedFunc *funcs, int count) {
     struct context ctx = {funcs, count};
     symbolicTable *table = newSymbolicTable(NULL, count);
+    preparedFunc *main = NULL;
     for (int i = 0; i < count; ++i) {
         preparedType type;
         type.type = FUNC;
         union ctx c = {};
-        c.func = funcs[i];
-        if (symbolicTable_putSymbol(table, type, funcs[i].identifier, c, SYMBOL_CATEGORY_FUNC) != 0) {
+        c.func = &funcs[i];
+        funcs[i].seen = 0;
+        if (strcmp(ctx.funcs[i].identifier, "main") == 0) {
+            main = &ctx.funcs[i];
+        }
+        if (symbolicTable_putSymbol(table, type, funcs[i].identifier, NULL, c, SYMBOL_CATEGORY_FUNC) != 0) {
             return 1;
         }
     }
-    preparedFunc *main = findProcedureById(ctx, "main");
     if (main == NULL) {
         return 1;
     }

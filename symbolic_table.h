@@ -12,7 +12,7 @@ typedef struct symbol symbol;
 
 
 union ctx {
-    preparedFunc func;
+    preparedFunc *func;
 };
 enum symbolCategory {
     SYMBOL_CATEGORY_FUNC,
@@ -22,8 +22,8 @@ struct symbol {
     char *identifier;
     preparedType type;
     enum symbolCategory category;
-    int offset;
     union ctx ctx;
+    char *label;
 };
 struct symbolicTable {
     symbolicTable *parent;
@@ -31,8 +31,10 @@ struct symbolicTable {
     int symbolsCount;
     char *currentFuncId;
 };
+
 char *symbolicTable_currentFuncId(symbolicTable *table);
-int symbolicTable_putSymbol(symbolicTable *table, preparedType type, char *identifier, union ctx ctx,
+
+int symbolicTable_putSymbol(symbolicTable *table, preparedType type, char *identifier, char* label, union ctx ctx,
                             enum symbolCategory category);
 
 symbol *symbolicTable_findSymbol(symbolicTable *table, char *identifier);

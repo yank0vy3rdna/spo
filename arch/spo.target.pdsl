@@ -20,6 +20,8 @@ registers:
 	storage inp [8];
 	storage outp [8];
 
+    view inReg = inp;
+    view outReg = outp;
 	view r0 = r0st;
 	view r1 = r1st;
 	view r2 = r2st;
@@ -60,7 +62,9 @@ instructions:
 		r3 = 0011,
 		ipv = 0100,
 		sp = 0101,
-		fp = 0110
+		fp = 0110,
+		inReg = 0111,
+		outReg = 1000
 	};
 /*
 add-reg2reg	0000	0000	op1	op2	to	0000	0000	0000
@@ -262,12 +266,47 @@ rem-imm2reg	0001	0001	op1	value				to
         sp = sp + 2;
 		ip = ip + 4;
     };
+    /*
+     *
+     * Call -> push instruction pointer to stack
+     * push frame pointer to stack
+     * make frame pointer equal to stack pointer
+     * push arguments to stack, add to stack pointer size of arguments and size of memory the function need for variables
+     * goto procedure pointer
+     * do some stuff ...
+     * put return value into r0
+     * make stack pointer equal frame pointer
+     * pop old frame pointer from stack
+     * pop old instruction pointer from stack
+     */
+    instruction call = { 0001 1110, imm16 as ptr, 0000 0000 } {
+        sp = sp - 2;
+        data_ram:1[sp] = ip;
+        data_ram:1[sp+1] = ip >> 8;
+        sp = sp - 2;
+        data_ram:1[sp] = fp;
+        data_ram:1[sp+1] = fp >> 8;
+        fp = sp;
+        ip = ptr;
+    };
+    instruction ret = { 0001 1111 1111 1111 1111 1111 0000 0000 } {
+        if fp != 0 then {
+            sp = fp;
+            fp = data_ram:1[sp] + (data_ram:1[sp+1] << 8);
+            sp = sp + 2;
+            ip = data_ram:1[sp] + (data_ram:1[sp+1] << 8);
+            sp = sp + 2;
+        }
+
+        ip = ip + 4;
+    };
 	instruction hlt = { 1111 1111 1111 1111 1111 1111 1111 1111 } {
 	};
 
 mnemonics:
 
 	mnemonic hlt();
+    mnemonic ret();
 
 /*	mnemonic store for st(from, ptr) "d[{2}], {1}" when d,
 					     (from, ptr) "c[{2}], {1}" when c,
@@ -284,6 +323,8 @@ mnemonics:
 
 	mnemonic store for st(from, ptr) plain2;
 	mnemonic load for ld(ptr, to) plain2;
+
+    mnemonic call for call(ptr) plain1;
 
     mnemonic neg for negative (op1, to) plain2;
     mnemonic _not for invert (op1, to) plain2;

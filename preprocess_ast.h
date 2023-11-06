@@ -64,6 +64,9 @@ struct preparedVar {
     preparedExpression *initValue;
     int isInitValueExists;
     ASTNode *astNode;
+
+    // for function args
+    char *label;
 };
 struct expressionsList {
     preparedExpression *expressions;
@@ -191,6 +194,7 @@ struct preparedFunc {
     preparedVars args;
     preparedType returnType;
     preparedBlock body;
+    int seen;
     ASTNode *astNode;
 };
 struct conditionalStatement {

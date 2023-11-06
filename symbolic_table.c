@@ -33,22 +33,6 @@ symbol *symbolicTable_findSymbol(symbolicTable *table, char *identifier) {
     return symbolicTable_findSymbol(table->parent, identifier);
 }
 
-//int findPreviousOffset(symbolicTable *table) {
-//    if (table == NULL) {
-//        return 0;
-//    }
-//    if (table->symbolsCount == 0) {
-//        return findPreviousOffset(table->parent);
-//    }
-//    return table->symbols[table->symbolsCount - 1].offset;
-//}
-
-//int sizeOfSymbol(preparedType type) {
-//    if (type.type == FUNC) {
-//        return 0;
-//    }
-//    return 2;
-//}
 
 char *symbolicTable_currentFuncId(symbolicTable *table) {
     if (table == NULL) {
@@ -60,7 +44,7 @@ char *symbolicTable_currentFuncId(symbolicTable *table) {
     return table->currentFuncId;
 }
 
-int symbolicTable_putSymbol(symbolicTable *table, preparedType type, char *identifier, union ctx ctx,
+int symbolicTable_putSymbol(symbolicTable *table, preparedType type, char *identifier, char* label, union ctx ctx,
                             enum symbolCategory category) {
     symbol *s = symbolicTable_findSymbol(table, identifier);
     if (s != NULL) {
@@ -72,7 +56,7 @@ int symbolicTable_putSymbol(symbolicTable *table, preparedType type, char *ident
     table->symbols[table->symbolsCount].identifier = identifier;
     table->symbols[table->symbolsCount].ctx = ctx;
     table->symbols[table->symbolsCount].category = category;
-//    table->symbols[table->symbolsCount].offset = findPreviousOffset(table) + sizeOfSymbol(type);
+    table->symbols[table->symbolsCount].label = label;
 
     table->symbolsCount++;
     return 0;

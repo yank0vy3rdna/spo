@@ -46,25 +46,36 @@ lex.yy.o: lex.yy.c
 parser.tab.o: parser.tab.c
 	gcc -c -o parser.tab.o parser.tab.c
 
-result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o symbolic_table_asm.o asm_generator.o
-	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o symbolic_table_asm.o asm_generator.o -o result && chmod +x result
+result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o asm_generator.o
+	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o asm_generator.o -o result && chmod +x result
 
 out.asm: result input.txt
 	./result input.txt
 	cat out.asm.data out.asm.code > out.asm
 
-run_assemble: out.asm
-	$(REMOTE_TASKS_CMD) -s Assemble -w definitionFile arch/spo.target.pdsl archName spo asmListing out.asm > assemble_res.txt
-	cat assemble_res.txt
+assemble_res.txt: out.asm arch/spo.target.pdsl
+	$(REMOTE_TASKS_CMD) -s Assemble -w definitionFile arch/spo.target.pdsl archName spo asmListing out.asm > assemble_res.txt; cat assemble_res.txt
 
-get_results: run_assemble
+out.ptptb: assemble_res.txt
 	$(REMOTE_TASKS_CMD) -g $$(cat assemble_res.txt | head -1 | awk  '{print $$6}') -r out.ptptb -o out.ptptb
 
-exec_binary: get_results
-	$(REMOTE_TASKS_CMD) -s ExecuteBinary -w definitionFile arch/spo.target.pdsl archName spo binaryFileToRun out.ptptb codeRamBankName code_ram ipRegStorageName ip finishMnemonicName hlt > exec_res.txt
+exec_binary: out.ptptb
+	$(REMOTE_TASKS_CMD) -s ExecuteBinaryWithInput -w \
+		definitionFile arch/spo.target.pdsl \
+		archName spo \
+		binaryFileToRun out.ptptb \
+		codeRamBankName code_ram \
+		ipRegStorageName ip \
+		stdinRegStName inp \
+		stdoutRegStName outp \
+		inputFile stdin.txt \
+		finishMnemonicName hlt > exec_res.txt
 	cat exec_res.txt
 	echo "Success"
 
 get_trace: exec_binary
 	$(REMOTE_TASKS_CMD) -g $$(cat exec_res.txt | head -1 | awk  '{print $$6}')  -r trace.txt -o trace.txt
 	cat trace.txt
+
+test:
+	$(REMOTE_TASKS_CMD) -t ExecuteBinaryWithInput

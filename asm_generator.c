@@ -6,9 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "asm_generator.h"
-#include "symbolic_table_asm.h"
+#include "symbolic_table.h"
 
-#define asm_code_header "[section code_ram]\nstart:\n"
+#define asm_code_header "[section code_ram]\n\tjump start\n"
 #define asm_data_header "[section data_ram]\n"
 #define asm_footer "halt:\n\thlt\n"
 
@@ -17,8 +17,10 @@
 #define mnemonic_2(mnemonic, arg1, arg2) fprintf(asmCodeOut, "\t%s %s, %s\n", mnemonic, arg1, arg2);
 #define mnemonic_2_i(mnemonic, arg1, arg2) fprintf(asmCodeOut, "\t%s %d, %s\n", mnemonic, arg1, arg2);
 #define mnemonic_3(mnemonic, arg1, arg2, arg3) fprintf(asmCodeOut, "\t%s %s, %s, %s\n", mnemonic, arg1, arg2, arg3);
+#define mnemonic_0(mnemonic) fprintf(asmCodeOut, "\t%s\n", mnemonic);
 
 #define mov_i(from, to) mnemonic_2_i("mov", from, to)
+#define mov(from, to) mnemonic_2("mov", from, to)
 #define push(reg) mnemonic_1("push", reg)
 #define pop(reg) mnemonic_1("pop", reg)
 #define add(op1, op2, to) mnemonic_3("add", op1, op2, to)
@@ -40,6 +42,10 @@
 
 #define load(from, to) mnemonic_2("load", from, to)
 #define store(from, to) mnemonic_2("store", from, to)
+
+#define ret() mnemonic_0("ret")
+#define call(label) mnemonic_1("call", label)
+
 
 char *labelName() {
     char *c = malloc(sizeof(char) * 32);
@@ -69,9 +75,9 @@ int translate_literal(preparedLiteral literal) {
     return 0;
 }
 
-int translate_expression(preparedExpression expression, asmSymbolicTable *table);
+int translate_expression(preparedExpression expression, symbolicTable *table);
 
-int translate_binary(preparedBinary binary, asmSymbolicTable *table) {
+int translate_binary(preparedBinary binary, symbolicTable *table) {
     translate_expression(*binary.leftOperand, table);
     translate_expression(*binary.rightOperand, table);
     pop("r1");
@@ -190,8 +196,8 @@ int translate_binary(preparedBinary binary, asmSymbolicTable *table) {
     return 0;
 }
 
-int translate_place(char *identifier, asmSymbolicTable *table) {
-    asmSymbol *s = asmSymbolicTable_findSymbol(table, identifier);
+int translate_place(char *identifier, symbolicTable *table) {
+    symbol *s = symbolicTable_findSymbol(table, identifier);
     if (s == NULL) {
         return 1;
     }
@@ -201,7 +207,47 @@ int translate_place(char *identifier, asmSymbolicTable *table) {
 
 int labelCounter = 0;
 
-int translate_expression(preparedExpression expression, asmSymbolicTable *table) {
+/*
+ * Call -> push instruction pointer to stack
+ * push frame pointer to stack
+ * make frame pointer equal to stack pointer
+ * push arguments to stack, add to stack pointer size of arguments and size of memory the function need for variables
+ * goto procedure pointer
+ * do some stuff ...
+ * put return value into r0
+ * make stack pointer equal frame pointer
+ * pop old frame pointer from stack
+ * pop old instruction pointer from stack
+ */
+
+int translate_call(preparedCall call, symbolicTable *table) {
+    symbol *s = symbolicTable_findSymbol(table, call.procedureName);
+    //calculate arguments
+    for (int i = 0; i < call.argumentExpressions.expressionsCount; ++i) {
+        translate_expression(call.argumentExpressions.expressions[i], table);
+        pop("r0")
+        store("r0", s->ctx.func->args.vars[i].label)
+    }
+    call(s->label)
+//    jump(s->label)
+
+//    push("ip")
+//    push("fp")
+//    mov("sp", "fp")
+
+    return 0;
+}
+
+int translate_return(preparedExpression expression, symbolicTable *table) {
+    if (!(expression.type == LITERAL && expression.literal.type.type == VOID)) {
+        translate_expression(expression, table);
+        pop("r0")
+    }
+    ret()
+    return 0;
+}
+
+int translate_expression(preparedExpression expression, symbolicTable *table) {
     int res = 0;
     switch (expression.type) {
         case UNARY:
@@ -211,8 +257,8 @@ int translate_expression(preparedExpression expression, asmSymbolicTable *table)
             break;
         case BRACES:
             return translate_expression(*expression.expression, table); // no need to push already pushed r0
-            break;
         case CALL:
+            res = translate_call(expression.call, table);
             break;
         case INDEXER:
             break;
@@ -227,9 +273,15 @@ int translate_expression(preparedExpression expression, asmSymbolicTable *table)
     return res;
 }
 
-int translate_variable(preparedVar var, asmSymbolicTable *table) {
-    char *label = labelName();
-    if (asmSymbolicTable_putSymbol(table, var.identifier, label, 2) != 0) {
+int translate_variable(preparedVar var, symbolicTable *table) {
+    char *label;
+    if (var.label != NULL) {
+        label = var.label;
+    } else {
+        label = labelName();
+    }
+    union ctx ctx = {};
+    if (symbolicTable_putSymbol(table, var.type, var.identifier, label, ctx, SYMBOL_CATEGORY_VAR) != 0) {
         return 1;
     }
     put_comment_var(var.identifier)
@@ -244,11 +296,11 @@ int translate_variable(preparedVar var, asmSymbolicTable *table) {
     return 0;
 }
 
-int translate_block(preparedBlock block, asmSymbolicTable *table, char *lastGoThroughLabel);
+int translate_block(preparedBlock block, symbolicTable *table, char *lastGoThroughLabel);
 
-int translate_statement(preparedStatement statement, asmSymbolicTable *table, char *lastGoThroughLabel);
+int translate_statement(preparedStatement statement, symbolicTable *table, char *lastGoThroughLabel);
 
-int translate_ifs(preparedIf ifs, asmSymbolicTable *table, char *lastGoThroughLabel) {
+int translate_ifs(preparedIf ifs, symbolicTable *table, char *lastGoThroughLabel) {
     put_comment("if")
     put_comment(ifs.statement.condition.astNode->value)
     if (translate_expression(ifs.statement.condition, table) != 0) { // r0 contains bool expression
@@ -280,7 +332,7 @@ int translate_ifs(preparedIf ifs, asmSymbolicTable *table, char *lastGoThroughLa
     return 0;
 }
 
-int translate_while(preparedWhile whilep, asmSymbolicTable *table) {
+int translate_while(preparedWhile whilep, symbolicTable *table) {
     put_comment("while")
     char *loopbackLabel = labelName();
     put_label(loopbackLabel)
@@ -301,7 +353,7 @@ int translate_while(preparedWhile whilep, asmSymbolicTable *table) {
     return 0;
 }
 
-int translate_dowhile(preparedDoWhile doWhile, asmSymbolicTable *table) {
+int translate_dowhile(preparedDoWhile doWhile, symbolicTable *table) {
     put_comment("doWhile")
     char *loopbackLabel = labelName();
     put_label(loopbackLabel)
@@ -325,8 +377,8 @@ int translate_dowhile(preparedDoWhile doWhile, asmSymbolicTable *table) {
     return 0;
 }
 
-int translate_assigment(preparedAssigment assigment, asmSymbolicTable *table) {
-    asmSymbol *s = asmSymbolicTable_findSymbol(table, assigment.to.identifier);
+int translate_assigment(preparedAssigment assigment, symbolicTable *table) {
+    symbol *s = symbolicTable_findSymbol(table, assigment.to.identifier);
     if (s == NULL) {
         return 1;
     }
@@ -336,7 +388,7 @@ int translate_assigment(preparedAssigment assigment, asmSymbolicTable *table) {
     return 0;
 }
 
-int translate_statement(preparedStatement statement, asmSymbolicTable *table, char *lastGoThroughLabel) {
+int translate_statement(preparedStatement statement, symbolicTable *table, char *lastGoThroughLabel) {
     switch (statement.type) {
         case STATEMENT_TYPE_BLOCK:
             return translate_block(statement.block, table, lastGoThroughLabel);
@@ -366,12 +418,12 @@ int translate_statement(preparedStatement statement, asmSymbolicTable *table, ch
         case STATEMENT_TYPE_ASSIGMENT:
             return translate_assigment(statement.assigment, table);
         case STATEMENT_TYPE_RETURN:
-            break;
+            return translate_return(statement.expression, table);
     }
     return 0;
 }
 
-int translate_block(preparedBlock block, asmSymbolicTable *table, char *lastGoThroughLabel) {
+int translate_block(preparedBlock block, symbolicTable *table, char *lastGoThroughLabel) {
     for (int i = 0; i < block.statementsCount; ++i) {
         if (translate_statement(block.statements[i], table, lastGoThroughLabel) != 0) {
             return 1;
@@ -380,9 +432,9 @@ int translate_block(preparedBlock block, asmSymbolicTable *table, char *lastGoTh
     return 0;
 }
 
-int translate_procedure(int num, preparedFunc *funcs, int count, asmSymbolicTable *table) {
-    table = newAsmSymbolicTable(table, 1024);
-    asmSymbol *s = asmSymbolicTable_findSymbol(table, funcs[num].identifier);
+int translate_procedure(int num, preparedFunc *funcs, int count, symbolicTable *table) {
+    table = newSymbolicTable(table, 1024);
+    symbol *s = symbolicTable_findSymbol(table, funcs[num].identifier);
     preparedFunc func = funcs[num];
 
     put_comment_var("--------- function ---------")
@@ -400,20 +452,38 @@ int translate_procedure(int num, preparedFunc *funcs, int count, asmSymbolicTabl
     if (translate_block(func.body, table, NULL) != 0) {
         return 1;
     }
-
+//    ret()
     return 0;
 }
 
 int generate_asm(preparedFunc *funcs, int count) {
-    asmSymbolicTable *table = newAsmSymbolicTable(NULL, count);
+    symbolicTable *table = newSymbolicTable(NULL, count);
+    char *mainLabel;
     for (int i = 0; i < count; ++i) {
-        if (asmSymbolicTable_putSymbol(table, funcs[i].identifier, labelName(), 0) != 0) {
+        if (funcs[i].seen == 0) {
+            continue;
+        }
+        union ctx ctx = {
+                &funcs[i]
+        };
+        for (int j = 0; j < funcs[i].args.count; ++j) {
+            funcs[i].args.vars[i].label = labelName();
+        }
+
+        if (symbolicTable_putSymbol(table, funcs[i].returnType, funcs[i].identifier, labelName(), ctx,
+                                    SYMBOL_CATEGORY_FUNC) != 0) {
             return 1;
         }
     }
     fprintf(asmCodeOut, asm_code_header);
     fprintf(asmDataOut, asm_data_header);
     for (int i = 0; i < count; ++i) {
+        if (funcs[i].seen == 0) {
+            continue;
+        }
+        if (strcmp(funcs[i].identifier, "main") == 0) {
+            put_label("start")
+        }
         if (translate_procedure(i, funcs, count, table) != 0) {
             return 2;
         }
