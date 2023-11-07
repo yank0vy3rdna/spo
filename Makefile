@@ -40,14 +40,17 @@ main.o: main.c
 ast.o: ast.c
 	gcc -c -o ast.o ast.c
 
+builtin_functions.o: builtin_functions.c
+	gcc -c -o builtin_functions.o builtin_functions.c
+
 lex.yy.o: lex.yy.c
 	gcc -c -o lex.yy.o lex.yy.c
 
 parser.tab.o: parser.tab.c
 	gcc -c -o parser.tab.o parser.tab.c
 
-result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o asm_generator.o
-	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o asm_generator.o -o result && chmod +x result
+result: ast.o parser.tab.o lex.yy.o main.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o asm_generator.o builtin_functions.o
+	gcc main.o parser.tab.o lex.yy.o ast.o error.o cfg.o preprocess_ast.o semantic_analyser.o symbolic_table.o asm_generator.o builtin_functions.o -o result && chmod +x result
 
 out.asm: result input.txt
 	./result input.txt
@@ -59,7 +62,7 @@ assemble_res.txt: out.asm arch/spo.target.pdsl
 out.ptptb: assemble_res.txt
 	$(REMOTE_TASKS_CMD) -g $$(cat assemble_res.txt | head -1 | awk  '{print $$6}') -r out.ptptb -o out.ptptb
 
-exec_binary: out.ptptb
+exec_res.txt: out.ptptb stdin.txt
 	$(REMOTE_TASKS_CMD) -s ExecuteBinaryWithInput -w \
 		definitionFile arch/spo.target.pdsl \
 		archName spo \
@@ -73,9 +76,21 @@ exec_binary: out.ptptb
 	cat exec_res.txt
 	echo "Success"
 
-get_trace: exec_binary
+trace.txt: exec_res.txt
 	$(REMOTE_TASKS_CMD) -g $$(cat exec_res.txt | head -1 | awk  '{print $$6}')  -r trace.txt -o trace.txt
-	cat trace.txt
+
+stdout.txt: exec_res.txt
+	$(REMOTE_TASKS_CMD) -g $$(cat exec_res.txt | head -1 | awk  '{print $$6}')  -r stdout.txt -o stdout.txt
+
+stderr.txt: exec_res.txt
+	$(REMOTE_TASKS_CMD) -g $$(cat exec_res.txt | head -1 | awk  '{print $$6}')  -r stderr.txt -o stderr.txt
+
+run: trace.txt stdout.txt stderr.txt
+#	echo "Trace"
+#	cat trace.txt
+	cat stdout.txt stderr.txt
+
 
 test:
-	$(REMOTE_TASKS_CMD) -t ExecuteBinaryWithInput
+	#$(REMOTE_TASKS_CMD) -t ExecuteBinaryWithInput
+	$(REMOTE_TASKS_CMD) -g $$(cat exec_res.txt | head -1 | awk  '{print $$6}')  -r stdout.txt -o stdout.txt

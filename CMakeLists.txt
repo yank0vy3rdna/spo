@@ -13,4 +13,6 @@ add_executable(lab1 main.c ast.c parser.tab.c lex.yy.c error.c
         symbolic_table.h
         asm_generator.c
         asm_generator.h
+        builtin_functions.c
+        builtin_functions.h
 )

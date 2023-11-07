@@ -6,6 +6,7 @@
 #include <printf.h>
 #include "semantic_analyser.h"
 #include "symbolic_table.h"
+#include "builtin_functions.h"
 
 struct context {
     preparedFunc *funcs;
@@ -45,7 +46,7 @@ int preparedBlock_visit(preparedBlock block, symbolicTable *table) {
             countVars += block.statements[i].vars.count;
         }
     }
-    table = newSymbolicTable(table, countVars);
+    table = newSymbolicTable(table);
     for (int i = 0; i < block.statementsCount; ++i) {
         if (preparedStatement_visit(block.statements[i], table) != 0) {
             symbolicTable_free(table);
@@ -111,7 +112,10 @@ preparedBinary_visit(preparedBinary binary, symbolicTable *table, preparedType *
     if (foundType != NULL) {
         *foundType = foundTypeLeft;
     }
-    return preparedExpression_visit(*binary.rightOperand, table, &foundTypeLeft, NULL);
+    if (expectedType != NULL) {
+        expectedType = foundType;
+    }
+    return preparedExpression_visit(*binary.rightOperand, table, expectedType, NULL);
 }
 
 int
@@ -310,7 +314,7 @@ symbolicTable *getGrandparentTable(symbolicTable *table) {
 int processSemanticsForFunction(preparedFunc *func, symbolicTable *table) {
     func->seen = 1;
     table = getGrandparentTable(table);
-    table = newSymbolicTable(table, func->args.count);
+    table = newSymbolicTable(table);
     table->currentFuncId = func->identifier;
     for (int i = 0; i < func->args.count; ++i) {
         union ctx c = {};
@@ -329,10 +333,22 @@ int processSemanticsForFunction(preparedFunc *func, symbolicTable *table) {
 }
 
 
-int processSemantics(preparedFunc *funcs, int count) {
+int processSemantics(preparedFunc *funcs, int count,  builtinFunctions functions) {
     struct context ctx = {funcs, count};
-    symbolicTable *table = newSymbolicTable(NULL, count);
+    symbolicTable *table = newSymbolicTable(NULL);
     preparedFunc *main = NULL;
+
+    for (int i = 0; i < functions.count; i++) {
+        preparedType type;
+        type.type = FUNC;
+        union ctx c = {};
+        c.func = &functions.functions[i].func;
+        c.func->seen = 0;
+        if (symbolicTable_putSymbol(table, type, c.func->identifier, NULL, c, SYMBOL_CATEGORY_FUNC) != 0) {
+            return 1;
+        }
+    }
+
     for (int i = 0; i < count; ++i) {
         preparedType type;
         type.type = FUNC;

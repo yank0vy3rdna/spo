@@ -4,6 +4,7 @@
 #include "preprocess_ast.h"
 #include "semantic_analyser.h"
 #include "asm_generator.h"
+#include "builtin_functions.h"
 
 #define codeAsmOutFilename "out.asm.code"
 #define dataAsmOutFilename "out.asm.data"
@@ -32,7 +33,10 @@ int main(int argc, char *argv[]) {
         }
         ASTNodes allProcedures = findAllProcedures();
         preparedFunc *funcsAfterPreprocessing = prepareProcedures(allProcedures);
-        if (processSemantics(funcsAfterPreprocessing, allProcedures.count) != 0) {
+
+        builtinFunctions builtinFuncs = getBuiltinFunctions();
+
+        if (processSemantics(funcsAfterPreprocessing, allProcedures.count, builtinFuncs) != 0) {
             return 1;
         }
 
@@ -49,7 +53,7 @@ int main(int argc, char *argv[]) {
         }
         asmCodeOut = code;
         asmDataOut = data;
-        int res = generate_asm(funcsAfterPreprocessing, allProcedures.count);
+        int res = generate_asm(funcsAfterPreprocessing, allProcedures.count, builtinFuncs);
         fclose(code);
         fclose(data);
         if (res != 0) {

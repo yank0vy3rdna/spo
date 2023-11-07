@@ -1,6 +1,8 @@
-int t(int r){
-    return r;
-}
 void main() {
-    int i = t(2);
+    int i = 0;
+    while (i < 5) {
+        if ((i % 2) == 0) {
+            break;
+        }
+    }
 }

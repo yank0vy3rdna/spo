@@ -6,12 +6,14 @@
 #include <string.h>
 #include <stdio.h>
 #include "symbolic_table.h"
+#include "builtin_functions.h"
 
-symbolicTable *newSymbolicTable(symbolicTable *parent, int capacity) {
+symbolicTable *newSymbolicTable(symbolicTable *parent) {
     symbolicTable *table = malloc(sizeof(symbolicTable));
     table->parent = parent;
     table->symbolsCount = 0;
-    table->symbols = malloc(sizeof(symbol) * capacity);
+    table->capacity = 5;
+    table->symbols = malloc(sizeof(symbol) * table->capacity);
     return table;
 }
 
@@ -44,12 +46,27 @@ char *symbolicTable_currentFuncId(symbolicTable *table) {
     return table->currentFuncId;
 }
 
-int symbolicTable_putSymbol(symbolicTable *table, preparedType type, char *identifier, char* label, union ctx ctx,
+int symbolicTable_putSymbol(symbolicTable *table, preparedType type, char *identifier, char *label, union ctx ctx,
                             enum symbolCategory category) {
+    if (identifier == NULL) {
+        fprintf(stderr, "identifier is NULL");
+        return 1;
+    }
+    if (table->symbolsCount >= table->capacity) {
+        fprintf(stderr, "table capacity exceed, double it: %d -> %d", table->capacity, table->capacity * 2);
+        table->capacity *= 2;
+        symbol *s = malloc(table->capacity * sizeof(symbol));
+        for (int i = 0; i < table->symbolsCount; ++i) {
+            s[i] = table->symbols[i];
+        }
+        free(table->symbols);
+        table->symbols = s;
+    }
+    identifier = strToHeap(identifier);
     symbol *s = symbolicTable_findSymbol(table, identifier);
     if (s != NULL) {
         fprintf(stderr, "symbol %s already exists", identifier);
-        return 1;
+        return 3;
     }
 
     table->symbols[table->symbolsCount].type = type;

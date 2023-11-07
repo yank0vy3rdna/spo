@@ -30,6 +30,7 @@ struct symbolicTable {
     symbol *symbols;
     int symbolsCount;
     char *currentFuncId;
+    int capacity;
 };
 
 char *symbolicTable_currentFuncId(symbolicTable *table);
@@ -41,6 +42,6 @@ symbol *symbolicTable_findSymbol(symbolicTable *table, char *identifier);
 
 void symbolicTable_free(symbolicTable *table);
 
-symbolicTable *newSymbolicTable(symbolicTable *parent, int capacity);
+symbolicTable *newSymbolicTable(symbolicTable *parent);
 
 #endif //LAB1_SYMBOLIC_TABLE_H

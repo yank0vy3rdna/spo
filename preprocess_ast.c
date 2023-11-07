@@ -438,9 +438,9 @@ preparedVars prepareFuncArgs(ASTNode *node) {
     i = node;
     for (int j = 0; j < args.count; ++j) {
         if (j == args.count - 1) {
-            args.vars[j] = prepareArgDef(node);
+            args.vars[j] = prepareArgDef(i);
         } else {
-            args.vars[j] = prepareArgDef(node->left);
+            args.vars[j] = prepareArgDef(i->left);
         }
         i = i->right;
     }

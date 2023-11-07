@@ -7,11 +7,11 @@
 #include <string.h>
 #include "asm_generator.h"
 #include "symbolic_table.h"
+#include "builtin_functions.h"
 
 #define asm_code_header "[section code_ram]\n\tjump start\n"
 #define asm_data_header "[section data_ram]\n"
 #define asm_footer "halt:\n\thlt\n"
-
 
 #define mnemonic_1(mnemonic, arg1) fprintf(asmCodeOut, "\t%s %s\n", mnemonic, arg1);
 #define mnemonic_2(mnemonic, arg1, arg2) fprintf(asmCodeOut, "\t%s %s, %s\n", mnemonic, arg1, arg2);
@@ -20,7 +20,6 @@
 #define mnemonic_0(mnemonic) fprintf(asmCodeOut, "\t%s\n", mnemonic);
 
 #define mov_i(from, to) mnemonic_2_i("mov", from, to)
-#define mov(from, to) mnemonic_2("mov", from, to)
 #define push(reg) mnemonic_1("push", reg)
 #define pop(reg) mnemonic_1("pop", reg)
 #define add(op1, op2, to) mnemonic_3("add", op1, op2, to)
@@ -106,18 +105,18 @@ int translate_binary(preparedBinary binary, symbolicTable *table) {
             mov_i(0, "r0")
             jump(label2)
             put_label(label1)
-            mov_i(-1, "r0")
+            mov_i(1, "r0")
             put_label(label2)
             free(label1);
             free(label2);
         }
             break;
         case BINARY_TYPE_NOTEQUAL: {
-            sub("r0", "r1", "r0") // a - b > 0
+            sub("r0", "r1", "r0") // a - b != 0
             char *label1 = labelName();
             char *label2 = labelName();
-            jumpgt("r0", label1)
-            mov_i(-1, "r0")
+            jumpeq("r0", label1)
+            mov_i(1, "r0")
             jump(label2)
             put_label(label1)
             mov_i(0, "r0")
@@ -247,10 +246,25 @@ int translate_return(preparedExpression expression, symbolicTable *table) {
     return 0;
 }
 
+int translate_unary(preparedUnary unary, symbolicTable *table) {
+    translate_expression(*unary.operand, table);
+    pop("r0");
+    switch (unary.type) {
+        case UNARY_TYPE_NOT:
+            not("r0", "r0")
+            break;
+        case UNARY_TYPE_MINUS:
+            neg("r0", "r0")
+            break;
+    }
+    return 0;
+}
+
 int translate_expression(preparedExpression expression, symbolicTable *table) {
     int res = 0;
     switch (expression.type) {
         case UNARY:
+            res = translate_unary(expression.unary, table);
             break;
         case BINARY:
             res = translate_binary(expression.binary, table);
@@ -432,8 +446,27 @@ int translate_block(preparedBlock block, symbolicTable *table, char *lastGoThrou
     return 0;
 }
 
+int translate_builtin_procedure(builtinFunction function, symbolicTable *table) {
+    symbol *s = symbolicTable_findSymbol(table, function.func.identifier);
+    put_comment_var("--------- builtin function ---------")
+    put_comment("--------- builtin function ---------")
+
+    put_comment_var(function.func.identifier)
+    put_comment(function.func.identifier)
+
+    put_label(s->label)
+
+    for (int i = 0; i < function.func.args.count; ++i) {
+        if (translate_variable(function.func.args.vars[i], table) != 0) {
+            return 1;
+        }
+    }
+    fprintf(asmCodeOut, "%s\n", function.asmBody);
+    return 0;
+}
+
 int translate_procedure(int num, preparedFunc *funcs, int count, symbolicTable *table) {
-    table = newSymbolicTable(table, 1024);
+    table = newSymbolicTable(table);
     symbol *s = symbolicTable_findSymbol(table, funcs[num].identifier);
     preparedFunc func = funcs[num];
 
@@ -452,12 +485,12 @@ int translate_procedure(int num, preparedFunc *funcs, int count, symbolicTable *
     if (translate_block(func.body, table, NULL) != 0) {
         return 1;
     }
-//    ret()
+    ret()
     return 0;
 }
 
-int generate_asm(preparedFunc *funcs, int count) {
-    symbolicTable *table = newSymbolicTable(NULL, count);
+int generate_asm(preparedFunc *funcs, int count, builtinFunctions functions) {
+    symbolicTable *table = newSymbolicTable(NULL);
     char *mainLabel;
     for (int i = 0; i < count; ++i) {
         if (funcs[i].seen == 0) {
@@ -467,7 +500,7 @@ int generate_asm(preparedFunc *funcs, int count) {
                 &funcs[i]
         };
         for (int j = 0; j < funcs[i].args.count; ++j) {
-            funcs[i].args.vars[i].label = labelName();
+            funcs[i].args.vars[j].label = labelName();
         }
 
         if (symbolicTable_putSymbol(table, funcs[i].returnType, funcs[i].identifier, labelName(), ctx,
@@ -477,6 +510,31 @@ int generate_asm(preparedFunc *funcs, int count) {
     }
     fprintf(asmCodeOut, asm_code_header);
     fprintf(asmDataOut, asm_data_header);
+
+    for (int i = 0; i < functions.count; ++i) {
+        if (functions.functions[i].func.seen == 0) {
+            continue;
+        }
+        union ctx ctx = {
+                &functions.functions[i].func
+        };
+        for (int j = 0; j < functions.functions[i].func.args.count; ++j) {
+            if (functions.functions[i].func.args.vars[i].label == NULL) {
+                functions.functions[i].func.args.vars[i].label = labelName();
+            }
+        }
+
+        if (symbolicTable_putSymbol(table, functions.functions[i].func.returnType,
+                                    functions.functions[i].func.identifier,
+                                    labelName(), ctx,
+                                    SYMBOL_CATEGORY_FUNC) != 0) {
+            return 1;
+        }
+        if (translate_builtin_procedure(functions.functions[i], table) != 0) {
+            return 1;
+        }
+    }
+
     for (int i = 0; i < count; ++i) {
         if (funcs[i].seen == 0) {
             continue;
@@ -486,6 +544,9 @@ int generate_asm(preparedFunc *funcs, int count) {
         }
         if (translate_procedure(i, funcs, count, table) != 0) {
             return 2;
+        }
+        if (strcmp(funcs[i].identifier, "main") == 0) {
+            jump("halt")
         }
     }
     fprintf(asmCodeOut, asm_footer);
