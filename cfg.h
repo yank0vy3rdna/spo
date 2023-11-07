@@ -5,24 +5,17 @@
 #define LAB1_CFG_H
 
 #include "ast.h"
-
-typedef struct preparedFunc preparedFunc;
-
-struct preparedFunc {
-    char *identifier;
-    ASTNode *body;
-};
+#include "preprocess_ast.h"
 
 
 ASTNodes findAllProcedures();
 
-preparedFunc prepareProcedure(ASTNode *procedure);
 
 typedef struct CFG CFG;
 
 CFG *makeCFG(preparedFunc pf, int nextId, int num);
 
-void CFG_print(FILE* f,CFG *cfg, int num, CFG **pCfg, int i);
+void CFG_print(FILE *f, CFG *cfg, int num, CFG **pCfg, int i);
 
 typedef struct Link Link;
 typedef struct LinkList LinkList;

@@ -23,36 +23,6 @@ ASTNodes findAllProcedures() {
     return funcDefs;
 }
 
-preparedFunc prepareProcedure(ASTNode *procedure) {
-    preparedFunc pf = {};
-    if (!procedure) {
-        printf("null procedure");
-        return pf;
-    }
-    if (strcmp(procedure->type, sourceItem) != 0) {
-        printf("procedure not sourceItem");
-        return pf;
-    }
-    if (!procedure->left) {
-        printf("procedure without funcSignature");
-        return pf;
-    }
-    if (!procedure->right) {
-        printf("procedure without body");
-        return pf;
-    }
-    if (!procedure->left->left) {
-        printf("funcSignature without argDef");
-        return pf;
-    }
-    if (!procedure->left->left->right) {
-        printf("argDef without identifier");
-        return pf;
-    }
-    pf.identifier = procedure->left->left->right->value;
-    pf.body = procedure->right;
-    return pf;
-}
 
 Block *NewBlock(int id, char *call) {
     Block *block = malloc(sizeof(Block));
@@ -335,12 +305,12 @@ void CFG_print(FILE *f, CFG *cfg, int num, CFG **cfgs, int countCfgs) {
     fprintf(f, ";\n");
 }
 
-CFG *makeCFG(preparedFunc pf, int nextId, int num) {
-    CFGBuilder cfgBuilder = {};
-    CFGBuilder_init(&cfgBuilder);
-
-    CFG *cfg = CFGBuilder_build(&cfgBuilder, pf.identifier, pf.body, nextId);
-
-    return cfg;
-}
+//CFG *makeCFG(preparedFunc pf, int nextId, int num) {
+//    CFGBuilder cfgBuilder = {};
+//    CFGBuilder_init(&cfgBuilder);
+//
+////    CFG *cfg = CFGBuilder_build(&cfgBuilder, pf.identifier, pf.body, nextId);
+//
+//    return cfg;
+//}
 
